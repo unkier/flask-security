@@ -102,7 +102,7 @@ class DefaultSecurityTests(SecurityTest):
 
     def test_unauthenticated_role_required(self):
         r = self._get('/admin', follow_redirects=True)
-        self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
+        self.assertIn('You do not have permission to view this resource.', r.data)
 
     def test_multiple_role_required(self):
         for user in ("matt@lp.com", "joe@lp.com"):
@@ -293,7 +293,7 @@ class ConfirmableTests(SecurityTest):
         e = 'dude@lp.com'
         self.register(e)
         r = self.authenticate(email=e)
-        self.assertIn(self.get_message('CONFIRMATION_REQUIRED'), r.data)
+        self.assertIn('Email requires confirmation.', r.data)
 
     def test_send_confirmation_of_already_confirmed_account(self):
         e = 'dude@lp.com'
@@ -305,7 +305,7 @@ class ConfirmableTests(SecurityTest):
         self.client.get('/confirm/' + token, follow_redirects=True)
         self.logout()
         r = self.client.post('/confirm', data=dict(email=e))
-        self.assertIn(self.get_message('ALREADY_CONFIRMED'), r.data)
+        self.assertIn('Your email has already been confirmed.', r.data)
 
     def test_register_sends_confirmation_email(self):
         e = 'dude@lp.com'
@@ -323,8 +323,7 @@ class ConfirmableTests(SecurityTest):
 
         r = self.client.get('/confirm/' + token, follow_redirects=True)
 
-        msg = self.app.config['SECURITY_MSG_EMAIL_CONFIRMED'][0]
-        self.assertIn(msg, r.data)
+        self.assertIn('Thank you. Your email has been confirmed.', r.data)
 
     def test_invalid_token_when_confirming_email(self):
         r = self.client.get('/confirm/bogus', follow_redirects=True)
@@ -338,7 +337,7 @@ class ConfirmableTests(SecurityTest):
         e = 'dude@lp.com'
         self.register(e)
         r = self._post('/confirm', data={'email': e})
-        self.assertIn(self.get_message('CONFIRMATION_REQUEST', email=e), r.data)
+        self.assertIn('Confirmation instructions have been sent to %s.' % e, r.data)
 
 
 class ExpiredConfirmationTest(SecurityTest):
@@ -364,7 +363,9 @@ class ExpiredConfirmationTest(SecurityTest):
             self.assertNotIn(token, outbox[0].html)
 
             expire_text = self.AUTH_CONFIG['SECURITY_CONFIRM_EMAIL_WITHIN']
-            msg = self.app.config['SECURITY_MSG_CONFIRMATION_EXPIRED'][0] % dict(within=expire_text, email=e)
+            msg = ('You did not confirm your email within %(within)s. New '
+                   'instructions to confirm your email have been sent to '
+                   '%(email)s.' % dict(within=expire_text, email=e))
             self.assertIn(msg, r.data)
 
 
@@ -434,7 +435,7 @@ class RecoverableTests(SecurityTest):
             'password_confirm': 'newpassword'
         }, follow_redirects=True)
 
-        self.assertIn(self.get_message('INVALID_RESET_PASSWORD_TOKEN'), r.data)
+        self.assertIn('Invalid reset password token.', r.data)
 
 
 class ExpiredResetPasswordTest(SecurityTest):
@@ -489,9 +490,8 @@ class PasswordlessTests(SecurityTest):
     }
 
     def test_login_request_for_inactive_user(self):
-        msg = self.app.config['SECURITY_MSG_DISABLED_ACCOUNT'][0]
         r = self.client.post('/login', data=dict(email='tiya@lp.com'), follow_redirects=True)
-        self.assertIn(msg, r.data)
+        self.assertIn('Account is disabled.', r.data)
 
     def test_request_login_token_sends_email_and_can_login(self):
         e = 'matt@lp.com'
@@ -510,19 +510,17 @@ class PasswordlessTests(SecurityTest):
                 user = requests[0]['user']
                 token = requests[0]['login_token']
 
-        msg = self.app.config['SECURITY_MSG_LOGIN_EMAIL_SENT'][0] % dict(email=user.email)
-        self.assertIn(msg, r.data)
+        self.assertIn('Instructions to login have been sent to %s.' % user.email, r.data)
 
         r = self.client.get('/login/' + token, follow_redirects=True)
-        self.assertIn(self.get_message('PASSWORDLESS_LOGIN_SUCCESSFUL'), r.data)
+        self.assertIn('You have successfully logged in.', r.data)
 
         r = self.client.get('/profile')
         self.assertIn('Profile Page', r.data)
 
     def test_invalid_login_token(self):
-        msg = self.app.config['SECURITY_MSG_INVALID_LOGIN_TOKEN'][0]
         r = self._get('/login/bogus', follow_redirects=True)
-        self.assertIn(msg, r.data)
+        self.assertIn('Invalid login token.', r.data)
 
     def test_token_login_forwards_to_post_login_view_when_already_authenticated(self):
         with capture_passwordless_login_requests() as requests:
@@ -530,10 +528,10 @@ class PasswordlessTests(SecurityTest):
             token = requests[0]['login_token']
 
         r = self.client.get('/login/' + token, follow_redirects=True)
-        self.assertIn(self.get_message('PASSWORDLESS_LOGIN_SUCCESSFUL'), r.data)
+        self.assertIn('You have successfully logged in.', r.data)
 
         r = self.client.get('/login/' + token, follow_redirects=True)
-        self.assertNotIn(self.get_message('PASSWORDLESS_LOGIN_SUCCESSFUL'), r.data)
+        self.assertNotIn('You have successfully logged in.', r.data)
 
     def test_send_login_with_invalid_email(self):
         r = self._post('/login', data=dict(email='bogus@bogus.com'))
@@ -564,7 +562,7 @@ class ExpiredLoginTokenTests(SecurityTest):
             self.assertNotIn(token, outbox[0].html)
 
             expire_text = self.AUTH_CONFIG['SECURITY_LOGIN_WITHIN']
-            msg = self.app.config['SECURITY_MSG_LOGIN_EXPIRED'][0] % dict(within=expire_text, email=e)
+            msg = 'You did not login within %(within)s. New instructions to login have been sent to %(email)s.' % dict(within=expire_text, email=e)
             self.assertIn(msg, r.data)
 
 
@@ -622,3 +620,9 @@ class AsyncMailTaskTests(SecurityTest):
 
         self.client.post('/reset', data=dict(email='joe@lp.com'))
         self.assertTrue(self.mail_sent)
+
+
+class BabelTests(SecurityTest):
+
+    def _create_app(self, auth_config):
+        return create_app(auth_config, with_babel=True)

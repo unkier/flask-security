@@ -14,6 +14,7 @@ from flask import current_app, redirect, request, render_template, jsonify, \
 from werkzeug.datastructures import MultiDict
 from werkzeug.local import LocalProxy
 
+from .babel import gettext, ngettext
 from .confirmable import send_confirmation_instructions, \
      confirm_user, confirm_email_token_status
 from .decorators import login_required
@@ -26,7 +27,7 @@ from .recoverable import reset_password_token_status, \
      send_reset_password_instructions, update_password
 from .registerable import register_user
 from .utils import get_url, get_post_login_redirect, do_flash, \
-     get_message, login_user, logout_user, anonymous_user_required, \
+     login_user, logout_user, anonymous_user_required, \
      url_for_security as url_for
 
 
@@ -59,6 +60,12 @@ def _ctx(endpoint):
     return _security._run_ctx_processor(endpoint)
 
 
+def _render_template(*args, **kwargs):
+    kwargs['_gettext'] = gettext
+    kwargs['_ngettext'] = ngettext
+    return render_template(*args, **kwargs)
+
+
 @anonymous_user_required
 def login():
     """View function for login view"""
@@ -78,7 +85,7 @@ def login():
     if request.json:
         return _render_json(form)
 
-    return render_template('security/login_user.html',
+    return _render_template('security/login_user.html',
                            login_user_form=form,
                            **_ctx('login'))
 
@@ -114,7 +121,7 @@ def register():
 
         return redirect(post_register_url or post_login_url)
 
-    return render_template('security/register_user.html',
+    return _render_template('security/register_user.html',
                            register_user_form=form,
                            **_ctx('register'))
 
@@ -127,9 +134,10 @@ def send_login():
 
     if form.validate_on_submit():
         send_login_instructions(form.user)
-        do_flash(*get_message('LOGIN_EMAIL_SENT', email=form.user.email))
+        do_flash(gettext('Instructions to login have been sent to %(email)s.',
+                         email=form.user.email), 'success')
 
-    return render_template('security/send_login.html',
+    return _render_template('security/send_login.html',
                            send_login_form=form,
                            **_ctx('send_login'))
 
@@ -140,17 +148,18 @@ def token_login(token):
     expired, invalid, user = login_token_status(token)
 
     if invalid:
-        do_flash(*get_message('INVALID_LOGIN_TOKEN'))
+        do_flash(gettext('Invalid login token.'), 'error')
     if expired:
         send_login_instructions(user)
-        do_flash(*get_message('LOGIN_EXPIRED', email=user.email,
-                              within=_security.login_within))
+        do_flash(gettext('You did not login within %(within)s. New instructions '
+                         'to login have been sent to %(email)s.',
+                         email=user.email, within=_security.login_within), 'error')
     if invalid or expired:
         return redirect(url_for('login'))
 
     login_user(user, True)
     after_this_request(_commit)
-    do_flash(*get_message('PASSWORDLESS_LOGIN_SUCCESSFUL'))
+    do_flash(gettext('You have successfully logged in.'), 'success')
 
     return redirect(get_post_login_redirect())
 
@@ -163,9 +172,10 @@ def send_confirmation():
 
     if form.validate_on_submit():
         send_confirmation_instructions(form.user)
-        do_flash(*get_message('CONFIRMATION_REQUEST', email=form.user.email))
+        do_flash(gettext('Confirmation instructions have been sent to '
+                         '%(email)s.', email=form.user.email), 'info')
 
-    return render_template('security/send_confirmation.html',
+    return _render_template('security/send_confirmation.html',
                            send_confirmation_form=form,
                            **_ctx('send_confirmation'))
 
@@ -177,11 +187,14 @@ def confirm_email(token):
     expired, invalid, user = confirm_email_token_status(token)
 
     if invalid:
-        do_flash(*get_message('INVALID_CONFIRMATION_TOKEN'))
+        do_flash(gettext('Invalid confirmation token.'), 'error')
     if expired:
         send_confirmation_instructions(user)
-        do_flash(*get_message('CONFIRMATION_EXPIRED', email=user.email,
-                              within=_security.confirm_email_within))
+        do_flash(gettext('You did not confirm your email within %(within)s. '
+                         'New instructions to confirm your email have been '
+                         'sent to %(email)s.',
+                         email=user.email,
+                         within=_security.confirm_email_within), 'error')
     if invalid or expired:
         return redirect(get_url(_security.confirm_error_view) or
                         url_for('send_confirmation'))
@@ -189,7 +202,7 @@ def confirm_email(token):
     confirm_user(user)
     login_user(user, True)
     after_this_request(_commit)
-    do_flash(*get_message('EMAIL_CONFIRMED'))
+    do_flash(gettext('Thank you. Your email has been confirmed.'), 'success')
 
     return redirect(get_url(_security.post_confirm_view) or
                     get_url(_security.post_login_view))
@@ -203,9 +216,10 @@ def forgot_password():
 
     if form.validate_on_submit():
         send_reset_password_instructions(form.user)
-        do_flash(*get_message('PASSWORD_RESET_REQUEST', email=form.user.email))
+        do_flash(gettext('Instructions to reset your password have been sent '
+                         'to %(email)s.', email=form.user.email), 'info')
 
-    return render_template('security/forgot_password.html',
+    return _render_template('security/forgot_password.html',
                            forgot_password_form=form,
                            **_ctx('forgot_password'))
 
@@ -217,10 +231,12 @@ def reset_password(token):
     expired, invalid, user = reset_password_token_status(token)
 
     if invalid:
-        do_flash(*get_message('INVALID_RESET_PASSWORD_TOKEN'))
+        do_flash(gettext('Invalid reset password token.'), 'error')
     if expired:
-        do_flash(*get_message('PASSWORD_RESET_EXPIRED', email=user.email,
-                              within=_security.reset_password_within))
+        do_flash(gettext('You did not reset your password within %(within)s. '
+                         'New instructions have been sent to %(email)s.',
+                         email=user.email,
+                         within=_security.reset_password_within), 'error')
     if invalid or expired:
         return redirect(url_for('forgot_password'))
 
@@ -229,12 +245,13 @@ def reset_password(token):
     if form.validate_on_submit():
         after_this_request(_commit)
         update_password(user, form.password.data)
-        do_flash(*get_message('PASSWORD_RESET'))
+        do_flash(gettext('You successfully reset your password and you have '
+                         'been logged in automatically.'), 'success')
         login_user(user, True)
         return redirect(get_url(_security.post_reset_view) or
                         get_url(_security.post_login_view))
 
-    return render_template('security/reset_password.html',
+    return _render_template('security/reset_password.html',
                            reset_password_form=form,
                            reset_password_token=token,
                            **_ctx('reset_password'))

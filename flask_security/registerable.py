@@ -12,9 +12,10 @@
 from flask import current_app as app
 from werkzeug.local import LocalProxy
 
+from .babel import gettext
 from .confirmable import generate_confirmation_link
 from .signals import user_registered
-from .utils import do_flash, get_message, send_mail, encrypt_password
+from .utils import do_flash, send_mail, encrypt_password
 
 # Convenient references
 _security = LocalProxy(lambda: app.extensions['security'])
@@ -30,7 +31,8 @@ def register_user(**kwargs):
 
     if _security.confirmable:
         confirmation_link, token = generate_confirmation_link(user)
-        do_flash(*get_message('CONFIRM_REGISTRATION', email=user.email))
+        do_flash(gettext('Thank you. Confirmation instructions have been sent '
+                         'to %(email)s.', email=user.email), 'success')
 
     user_registered.send(dict(user=user, confirm_token=token),
                          app=app._get_current_object())

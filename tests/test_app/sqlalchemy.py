@@ -7,6 +7,8 @@ sys.path.pop(0)
 sys.path.insert(0, os.getcwd())
 
 
+from flask import session, request
+from flask.ext.babel import Babel
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.security import Security, UserMixin, RoleMixin, \
      SQLAlchemyUserDatastore
@@ -14,7 +16,18 @@ from flask.ext.security import Security, UserMixin, RoleMixin, \
 from tests.test_app import create_app as create_base_app, populate_data, \
      add_context_processors
 
-def create_app(config):
+
+def get_locale():
+    print 'getting locale'
+    override = request.args.get('lang')
+
+    if override:
+        session['lang'] = override
+    rv = session.get('lang', 'en')
+    print 'RV = ' + rv
+    return rv
+
+def create_app(config, with_babel=False):
     app = create_base_app(config)
 
     app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root@localhost/flask_security_test'
@@ -52,9 +65,13 @@ def create_app(config):
 
     app.security = Security(app, SQLAlchemyUserDatastore(db, User, Role))
 
+    babel = Babel(app)
+    babel.localeselector(get_locale)
+    app.security.locale_selector(get_locale)
+
     add_context_processors(app.security)
 
     return app
 
 if __name__ == '__main__':
-    create_app({}).run()
+    create_app({}, with_babel=True).run()

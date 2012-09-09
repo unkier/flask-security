@@ -16,7 +16,8 @@ from flask.ext.login import current_user, login_required
 from flask.ext.principal import RoleNeed, Permission, Identity, identity_changed
 from werkzeug.local import LocalProxy
 
-from . import utils
+from .babel import gettext
+from .utils import do_flash, get_url, md5, verify_password, config_value
 
 
 # Convenient references
@@ -38,8 +39,8 @@ def _get_unauthorized_response(text=None, headers=None):
 
 
 def _get_unauthorized_view():
-    cv = utils.get_url(utils.config_value('UNAUTHORIZED_VIEW'))
-    utils.do_flash(*utils.get_message('UNAUTHORIZED'))
+    cv = get_url(config_value('UNAUTHORIZED_VIEW'))
+    do_flash(gettext('You do not have permission to view this resource.'), 'error')
     return redirect(cv or request.referrer or '/')
 
 
@@ -53,7 +54,7 @@ def _check_token():
     try:
         data = serializer.loads(token)
         user = _security.datastore.find_user(id=data[0])
-        return utils.md5(user.password) == data[1]
+        return md5(user.password) == data[1]
     except:
         return False
 
@@ -62,7 +63,7 @@ def _check_http_auth():
     auth = request.authorization or dict(username=None, password=None)
     user = _security.datastore.find_user(email=auth.username)
 
-    if user and utils.verify_password(auth.password, user.password):
+    if user and verify_password(auth.password, user.password):
         app = current_app._get_current_object()
         identity_changed.send(app, identity=Identity(user.id))
         return True

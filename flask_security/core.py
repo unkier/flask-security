@@ -64,30 +64,6 @@ _default_config = {
     'DEFAULT_HTTP_AUTH_REALM': 'Login Required'
 }
 
-#: Default Flask-Security messages
-_default_messages = {
-    'UNAUTHORIZED': ('You do not have permission to view this resource.', 'error'),
-    'CONFIRM_REGISTRATION': ('Thank you. Confirmation instructions have been sent to %(email)s.', 'success'),
-    'EMAIL_CONFIRMED': ('Thank you. Your email has been confirmed.', 'success'),
-    'ALREADY_CONFIRMED': ('Your email has already been confirmed.', 'info'),
-    'INVALID_CONFIRMATION_TOKEN': ('Invalid confirmation token.', 'error'),
-    'ALREADY_CONFIRMED': ('This email has already been confirmed', 'info'),
-    'PASSWORD_MISMATCH': ('Password does not match', 'error'),
-    'PASSWORD_RESET_REQUEST': ('Instructions to reset your password have been sent to %(email)s.', 'info'),
-    'PASSWORD_RESET_EXPIRED': ('You did not reset your password within %(within)s. New instructions have been sent to %(email)s.', 'error'),
-    'INVALID_RESET_PASSWORD_TOKEN': ('Invalid reset password token.', 'error'),
-    'CONFIRMATION_REQUIRED': ('Email requires confirmation.', 'error'),
-    'CONFIRMATION_REQUEST': ('Confirmation instructions have been sent to %(email)s.', 'info'),
-    'CONFIRMATION_EXPIRED': ('You did not confirm your email within %(within)s. New instructions to confirm your email have been sent to %(email)s.', 'error'),
-    'LOGIN_EXPIRED': ('You did not login within %(within)s. New instructions to login have been sent to %(email)s.', 'error'),
-    'LOGIN_EMAIL_SENT': ('Instructions to login have been sent to %(email)s.', 'success'),
-    'INVALID_LOGIN_TOKEN': ('Invalid login token.', 'error'),
-    'DISABLED_ACCOUNT': ('Account is disabled.', 'error'),
-    'PASSWORDLESS_LOGIN_SUCCESSFUL': ('You have successfuly logged in.', 'success'),
-    'PASSWORD_RESET': ('You successfully reset your password and you have been logged in automatically.', 'success')
-}
-
-
 def _user_loader(user_id):
     return _security.datastore.find_user(id=user_id)
 
@@ -147,13 +123,14 @@ def _get_serializer(app, name):
     return URLSafeTimedSerializer(secret_key=secret_key, salt=salt)
 
 
-def _get_state(app, datastore, **kwargs):
+def _get_state(app, datastore, translations_path, **kwargs):
     for key, value in get_config(app).items():
         kwargs[key.lower()] = value
 
     kwargs.update(dict(
         app=app,
         datastore=datastore,
+        translations_path=translations_path,
         login_manager=_get_login_manager(app),
         principal=_get_principal(app),
         pwd_context=_get_pwd_context(app),
@@ -258,6 +235,11 @@ class _SecurityState(object):
     def send_mail_task(self, fn):
         self._send_mail_task = fn
 
+    def locale_selector(self, f):
+        if self.locale_selector_func is not None:
+            raise Exception('Can not add locale_selector second time.')
+        self.locale_selector_func = f
+
 
 class Security(object):
     """The :class:`Security` class initializes the Flask-Security extension.
@@ -265,9 +247,11 @@ class Security(object):
     :param app: The application.
     :param datastore: An instance of a user datastore.
     """
-    def __init__(self, app=None, datastore=None, **kwargs):
+    def __init__(self, app=None, datastore=None,
+                 translations_path=None, **kwargs):
         self.app = app
         self.datastore = datastore
+        self.translations_path = translations_path
 
         if app is not None and datastore is not None:
             self._state = self.init_app(app, datastore, **kwargs)
@@ -284,12 +268,10 @@ class Security(object):
         for key, value in _default_config.items():
             app.config.setdefault('SECURITY_' + key, value)
 
-        for key, value in _default_messages.items():
-            app.config.setdefault('SECURITY_MSG_' + key, value)
-
         identity_loaded.connect_via(app)(_on_identity_loaded)
 
-        state = _get_state(app, datastore)
+        state = _get_state(app, datastore, self.translations_path,
+                           locale_selector_func=None)
         app.register_blueprint(create_blueprint(state, __name__))
         app.context_processor(_context_processor)
         app.extensions['security'] = state

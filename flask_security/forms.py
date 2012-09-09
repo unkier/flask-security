@@ -15,29 +15,30 @@ from flask.ext.wtf import Form as BaseForm, TextField, PasswordField, \
      ValidationError, Length
 from werkzeug.local import LocalProxy
 
+from .babel import gettext
 from .confirmable import requires_confirmation
-from .utils import verify_password, get_message
+from .utils import verify_password
 
 # Convenient reference
 _datastore = LocalProxy(lambda: current_app.extensions['security'].datastore)
 
-email_required = Required(message='Email not provided')
+email_required = Required(message=gettext('Email not provided'))
 
-email_validator = Email(message='Invalid email address')
+email_validator = Email(message=gettext('Invalid email address'))
 
-password_required = Required(message="Password not provided")
+password_required = Required(message=gettext("Password not provided"))
 
 
 def unique_user_email(form, field):
     if _datastore.find_user(email=field.data) is not None:
-        raise ValidationError(field.data +
-                              ' is already associated with an account')
+        raise ValidationError(gettext('%(email)s is already associated with '
+                                      'an account', email=field.data))
 
 
 def valid_user_email(form, field):
     form.user = _datastore.find_user(email=field.data)
     if form.user is None:
-        raise ValidationError('Specified user does not exist')
+        raise ValidationError(gettext('Specified user does not exist'))
 
 
 class Form(BaseForm):
@@ -46,39 +47,40 @@ class Form(BaseForm):
                                    *args, **kwargs)
 
 class EmailFormMixin():
-    email = TextField("Email Address",
+    email = TextField(gettext("Email Address"),
         validators=[email_required,
                     email_validator])
 
 
 class UserEmailFormMixin():
     user = None
-    email = TextField("Email Address",
+    email = TextField(gettext("Email Address"),
         validators=[email_required,
                     email_validator,
                     valid_user_email])
 
 
 class UniqueEmailFormMixin():
-    email = TextField("Email Address",
+    email = TextField(gettext("Email Address"),
         validators=[email_required,
                     email_validator,
                     unique_user_email])
 
 
 class PasswordFormMixin():
-    password = PasswordField("Password",
+    password = PasswordField(gettext("Password"),
         validators=[password_required])
 
 
 class NewPasswordFormMixin():
-    password = PasswordField("Password",
+    password = PasswordField(gettext("Password"),
         validators=[password_required,
                     Length(min=6, max=128)])
 
 class PasswordConfirmFormMixin():
-    password_confirm = PasswordField("Retype Password",
-        validators=[EqualTo('password', message="Passwords do not match")])
+    password_confirm = PasswordField(gettext("Retype Password"),
+        validators=[EqualTo('password',
+                            message=gettext("Passwords do not match"))])
 
 
 class NextFormMixin():
@@ -103,7 +105,8 @@ class SendConfirmationForm(Form, UserEmailFormMixin):
         if not super(SendConfirmationForm, self).validate():
             return False
         if self.user.confirmed_at is not None:
-            self.email.errors.append(get_message('ALREADY_CONFIRMED')[0])
+            self.email.errors.append(
+                gettext('Your email has already been confirmed.'))
             return False
         return True
 
@@ -126,7 +129,7 @@ class PasswordlessLoginForm(Form, UserEmailFormMixin):
         if not super(PasswordlessLoginForm, self).validate():
             return False
         if not self.user.is_active():
-            self.email.errors.append(get_message('DISABLED_ACCOUNT')[0])
+            self.email.errors.append(gettext('Account is disabled.'))
             return False
         return True
 
@@ -144,13 +147,13 @@ class LoginForm(Form, UserEmailFormMixin, PasswordFormMixin, NextFormMixin):
         if not super(LoginForm, self).validate():
             return False
         if not verify_password(self.password.data, self.user.password):
-            self.password.errors.append('Invalid password')
+            self.password.errors.append(gettext('Invalid password'))
             return False
         if requires_confirmation(self.user):
-            self.email.errors.append(get_message('CONFIRMATION_REQUIRED')[0])
+            self.email.errors.append(gettext('Email requires confirmation.'))
             return False
         if not self.user.is_active():
-            self.email.errors.append(get_message('DISABLED_ACCOUNT')[0])
+            self.email.errors.append(gettext('Account is disabled.'))
             return False
         return True
 
@@ -169,4 +172,4 @@ class RegisterForm(ConfirmRegisterForm, PasswordConfirmFormMixin):
 class ResetPasswordForm(Form, NewPasswordFormMixin, PasswordConfirmFormMixin):
     """The default reset password form"""
 
-    submit = SubmitField("Reset Password")
+    submit = SubmitField(gettext("Reset Password"))

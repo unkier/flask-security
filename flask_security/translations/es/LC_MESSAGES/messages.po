@@ -1,0 +1,187 @@
+# Spanish translations for Flask-Security.
+# Copyright (C) 2012 ORGANIZATION
+# This file is distributed under the same license as the Flask-Security
+# project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2012.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Flask-Security VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2012-09-07 18:25-0400\n"
+"PO-Revision-Date: 2012-09-07 18:26-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: es <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 0.9.6\n"
+
+#: ../flask_security/decorators.py:43
+msgid "You do not have permission to view this resource."
+msgstr "Usted no tiene permiso para acceder a este apartado."
+
+#: ../flask_security/forms.py:25
+msgid "Email not provided"
+msgstr "Desprovisto de correo electrónico"
+
+#: ../flask_security/forms.py:27
+msgid "Invalid Email"
+msgstr "Email inválido"
+
+#: ../flask_security/forms.py:29
+msgid "Password not provided"
+msgstr "Contraseña no siempre"
+
+#: ../flask_security/forms.py:34
+#, python-format
+msgid "%(email)s is already associated with an account"
+msgstr "%(email)s ya está asociado a una cuenta"
+
+#: ../flask_security/forms.py:41
+msgid "Specified user does not exist"
+msgstr "Usuario especificado no existe"
+
+#: ../flask_security/forms.py:50 ../flask_security/forms.py:57
+#: ../flask_security/forms.py:64
+msgid "Email Address"
+msgstr "Email"
+
+#: ../flask_security/forms.py:71 ../flask_security/forms.py:76
+msgid "Password"
+msgstr "Contraseña"
+
+#: ../flask_security/forms.py:81
+msgid "Retype Password"
+msgstr "Vuelva a escribir la contraseña"
+
+#: ../flask_security/forms.py:83
+msgid "Passwords do not match"
+msgstr "Las contraseñas no coinciden"
+
+#: ../flask_security/forms.py:109
+msgid "Your email has already been confirmed."
+msgstr "Tu email ha sido ya confirmado."
+
+#: ../flask_security/forms.py:132 ../flask_security/forms.py:156
+msgid "Account is disabled."
+msgstr "Cuenta deshabilitada."
+
+#: ../flask_security/forms.py:150
+msgid "Invalid password"
+msgstr "Contraseña no válida"
+
+#: ../flask_security/forms.py:153
+msgid "Email requires confirmation."
+msgstr "Correo electrónico requiere confirmación."
+
+#: ../flask_security/forms.py:175
+msgid "Reset Password"
+msgstr "Restablecer contraseña"
+
+#: ../flask_security/registerable.py:34
+#, python-format
+msgid "Thank you. Confirmation instructions have been sent to %(email)s."
+msgstr "Gracias. Instrucciones de confirmación han sido enviados a %(email)s."
+
+#: ../flask_security/views.py:137
+#, python-format
+msgid "Instructions to login have been sent to %(email)s."
+msgstr "Instrucciones para iniciar sesión han sido enviados a %(email)s."
+
+#: ../flask_security/views.py:151
+msgid "Invalid login token."
+msgstr "Invalid token de inicio de sesión."
+
+#: ../flask_security/views.py:154
+#, python-format
+msgid ""
+"You did not login within %(within)s. New instructions to login have been "
+"sent to %(email)s."
+msgstr "Usted no entra dentro %(within)s. Las nuevas instrucciones para iniciar sesión han sido "
+"enviado a %(email)s."
+
+#: ../flask_security/views.py:162
+msgid "You have successfully logged in."
+msgstr "Ha registrado"
+
+#: ../flask_security/views.py:175
+#, python-format
+msgid "Confirmation instructions have been sent to %(email)s."
+msgstr "Instrucciones de confirmación han sido enviados a %(email)s."
+
+#: ../flask_security/views.py:190
+msgid "Invalid confirmation token."
+msgstr "Señal de confirmación no es válido."
+
+#: ../flask_security/views.py:193
+#, python-format
+msgid ""
+"You did not confirm your email within %(within)s. New instructions to "
+"confirm your email have been sent to %(email)s."
+msgstr "Usted no ha confirmado su correo electrónico dentro %(within)s. Las nuevas instrucciones "
+"para confirmar su dirección de correo electrónico ha sido enviado a %(email)s."
+
+#: ../flask_security/views.py:205
+msgid "Thank you. Your email has been confirmed."
+msgstr "Gracias. Tu email ha sido confirmada."
+
+#: ../flask_security/views.py:219
+#, python-format
+msgid "Instructions to reset your password have been sent to %(email)s."
+msgstr "Las instrucciones para restablecer la contraseña han sido enviado a %(email)s"
+
+#: ../flask_security/views.py:234
+msgid "Invalid reset password token."
+msgstr "Invalid token de restablecimiento de contraseña."
+
+#: ../flask_security/views.py:236
+#, python-format
+msgid ""
+"You did not reset your password within %(within)s. New instructions have "
+"been sent to %(email)s."
+msgstr "Usted no restablecer su contraseña en %(within)s. Las nuevas instrucciones "
+"se han enviado a %(email)s."
+
+#: ../flask_security/views.py:248
+msgid ""
+"You successfully reset your password and you have been logged in "
+"automatically."
+msgstr "Correctamente restablecer su contraseña y se ha cerrado de forma automática"
+
+#: ../flask_security/templates/security/_menu.html:2
+msgid "Menu"
+msgstr "Menú"
+
+#: ../flask_security/templates/security/_menu.html:4
+#: ../flask_security/templates/security/login_user.html:3
+#: ../flask_security/templates/security/send_login.html:3
+msgid "Login"
+msgstr "Login"
+
+#: ../flask_security/templates/security/_menu.html:6
+#: ../flask_security/templates/security/register_user.html:3
+msgid "Register"
+msgstr "Registro"
+
+#: ../flask_security/templates/security/_menu.html:9
+msgid "Forgot password"
+msgstr "Olvidó su contraseña"
+
+#: ../flask_security/templates/security/_menu.html:12
+msgid "Confirm account"
+msgstr "Confirme cuenta"
+
+#: ../flask_security/templates/security/forgot_password.html:3
+msgid "Send password reset instructions"
+msgstr "Enviar instrucciones de restablecimiento de contraseñas"
+
+#: ../flask_security/templates/security/reset_password.html:3
+msgid "Reset password"
+msgstr "Cambiar contraseña"
+
+#: ../flask_security/templates/security/send_confirmation.html:3
+msgid "Resend confirmation instructions"
+msgstr "Vuelva a enviar instrucciones de confirmación"
+
