@@ -5,7 +5,7 @@ try:
     class CustomDomain(Domain):
         def __init__(self):
             super(CustomDomain, self).__init__(translations.__path__[0],
-                                               domain='security')
+                                               domain="security")
 
         def get_translations_path(self, ctx):
             dirname = ctx.app.extensions['security'].translations_path
@@ -13,13 +13,15 @@ try:
                 return dirname
             return super(CustomDomain, self).get_translations_path(ctx)
 
+        def gettext(self, *args, **kwargs):
+            return super(CustomDomain, self).gettext(*args, **kwargs)
+
     domain = CustomDomain()
     gettext = domain.gettext
     ngettext = domain.ngettext
     lazy_gettext = domain.lazy_gettext
 
 except ImportError:
-    print 'wtf'
     def gettext(string, **variables):
         return string % variables
 
