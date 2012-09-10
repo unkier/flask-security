@@ -235,11 +235,6 @@ class _SecurityState(object):
     def send_mail_task(self, fn):
         self._send_mail_task = fn
 
-    def locale_selector(self, f):
-        if self.locale_selector_func is not None:
-            raise Exception('Can not add locale_selector second time.')
-        self.locale_selector_func = f
-
 
 class Security(object):
     """The :class:`Security` class initializes the Flask-Security extension.
@@ -270,8 +265,7 @@ class Security(object):
 
         identity_loaded.connect_via(app)(_on_identity_loaded)
 
-        state = _get_state(app, datastore, self.translations_path,
-                           locale_selector_func=None)
+        state = _get_state(app, datastore, self.translations_path)
         app.register_blueprint(create_blueprint(state, __name__))
         app.context_processor(_context_processor)
         app.extensions['security'] = state

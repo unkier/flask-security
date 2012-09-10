@@ -1,2 +1,3 @@
 recursive-include tests *.py
 recursive-include flask_security/templates *.*
+recursive-include flask_security/translations *.*

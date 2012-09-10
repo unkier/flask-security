@@ -21,7 +21,8 @@ try:
     ngettext = domain.ngettext
     lazy_gettext = domain.lazy_gettext
 
-except ImportError:
+except ImportError, e:
+    print 'babel effed up: %s' % e
     def gettext(string, **variables):
         return string % variables
 

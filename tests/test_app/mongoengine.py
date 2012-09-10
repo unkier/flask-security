@@ -13,6 +13,34 @@ from flask.ext.security import Security, UserMixin, RoleMixin, \
 from tests.test_app import create_app as create_base_app, populate_data, \
      add_context_processors
 
+
+db = MongoEngine()
+
+
+class Role(db.Document, RoleMixin):
+    name = db.StringField(required=True, unique=True, max_length=80)
+    description = db.StringField(max_length=255)
+
+
+class User(db.Document, UserMixin):
+    email = db.StringField(unique=True, max_length=255)
+    password = db.StringField(required=True, max_length=255)
+    last_login_at = db.DateTimeField()
+    current_login_at = db.DateTimeField()
+    last_login_ip = db.StringField(max_length=100)
+    current_login_ip = db.StringField(max_length=100)
+    login_count = db.IntField()
+    active = db.BooleanField(default=True)
+    confirmed_at = db.DateTimeField()
+    roles = db.ListField(db.ReferenceField(Role), default=[])
+
+
+def before_first_request():
+    User.drop_collection()
+    Role.drop_collection()
+    populate_data()
+
+
 def create_app(config):
     app = create_base_app(config)
 
@@ -20,32 +48,10 @@ def create_app(config):
     app.config['MONGODB_HOST'] = 'localhost'
     app.config['MONGODB_PORT'] = 27017
 
-    db = MongoEngine(app)
+    db.init_app(app)
 
-    class Role(db.Document, RoleMixin):
-        name = db.StringField(required=True, unique=True, max_length=80)
-        description = db.StringField(max_length=255)
-
-    class User(db.Document, UserMixin):
-        email = db.StringField(unique=True, max_length=255)
-        password = db.StringField(required=True, max_length=255)
-        last_login_at = db.DateTimeField()
-        current_login_at = db.DateTimeField()
-        last_login_ip = db.StringField(max_length=100)
-        current_login_ip = db.StringField(max_length=100)
-        login_count = db.IntField()
-        active = db.BooleanField(default=True)
-        confirmed_at = db.DateTimeField()
-        roles = db.ListField(db.ReferenceField(Role), default=[])
-
-    @app.before_first_request
-    def before_first_request():
-        User.drop_collection()
-        Role.drop_collection()
-        populate_data()
-
+    app.before_first_request(before_first_request)
     app.security = Security(app, MongoEngineUserDatastore(db, User, Role))
-
     add_context_processors(app.security)
 
     return app
