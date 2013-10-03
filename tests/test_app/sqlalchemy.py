@@ -29,8 +29,8 @@ def populate_acl_data(db, User, Post, Comment):
     for m in matts_post, joes_post:
         db.session.add(m)
     db.session.commit()
-    oid = acl_ds.create_oid_from_object(matts_post)
-    acl_ds.grant_access(matt, matts_post)
+    acl_ds.grant_object_access(matt, matts_post, ['view', 'delete', 'edit'])
+    acl_ds.grant_class_access(joe, Post, ['view'])
 
 
 def create_app(config, **kwargs):

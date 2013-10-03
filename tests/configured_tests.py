@@ -22,7 +22,7 @@ class ConfiguredPasswordHashSecurityTests(SecurityTest):
     AUTH_CONFIG = {
         'SECURITY_PASSWORD_HASH': 'bcrypt',
         'SECURITY_PASSWORD_SALT': 'so-salty',
-        'USER_COUNT': 1
+
     }
 
     def test_authenticate(self):
@@ -110,7 +110,7 @@ class BadConfiguredSecurityTests(SecurityTest):
 
     AUTH_CONFIG = {
         'SECURITY_PASSWORD_HASH': 'bcrypt',
-        'USER_COUNT': 1
+
     }
 
     def test_bad_configuration_raises_runtimer_error(self):
@@ -191,7 +191,7 @@ class PasswordlessTemplatePathTests(SecurityTest):
 class RegisterableTests(SecurityTest):
     AUTH_CONFIG = {
         'SECURITY_REGISTERABLE': True,
-        'USER_COUNT': 1
+
     }
 
     def test_register_valid_user(self):
@@ -208,7 +208,7 @@ class ConfirmableTests(SecurityTest):
         'SECURITY_CONFIRMABLE': True,
         'SECURITY_REGISTERABLE': True,
         'SECURITY_EMAIL_SUBJECT_REGISTER': 'Custom welcome subject',
-        'USER_COUNT': 1
+
     }
 
     def test_login_before_confirmation(self):
@@ -295,7 +295,7 @@ class ExpiredConfirmationTest(SecurityTest):
         'SECURITY_CONFIRMABLE': True,
         'SECURITY_REGISTERABLE': True,
         'SECURITY_CONFIRM_EMAIL_WITHIN': '1 milliseconds',
-        'USER_COUNT': 1
+
     }
 
     def test_expired_confirmation_token_sends_email(self):
@@ -324,7 +324,7 @@ class LoginWithoutImmediateConfirmTests(SecurityTest):
         'SECURITY_CONFIRMABLE': True,
         'SECURITY_REGISTERABLE': True,
         'SECURITY_LOGIN_WITHOUT_CONFIRMATION': True,
-        'USER_COUNT': 1
+
     }
 
     def test_register_valid_user_automatically_signs_in(self):
@@ -528,7 +528,7 @@ class TrackableTests(SecurityTest):
 
     AUTH_CONFIG = {
         'SECURITY_TRACKABLE': True,
-        'USER_COUNT': 1
+
     }
 
     def test_did_track(self):
@@ -627,7 +627,7 @@ class ExpiredLoginTokenTests(SecurityTest):
     AUTH_CONFIG = {
         'SECURITY_PASSWORDLESS': True,
         'SECURITY_LOGIN_WITHIN': '1 milliseconds',
-        'USER_COUNT': 1
+
     }
 
     def test_expired_login_token_sends_email(self):
@@ -656,7 +656,7 @@ class AsyncMailTaskTests(SecurityTest):
 
     AUTH_CONFIG = {
         'SECURITY_RECOVERABLE': True,
-        'USER_COUNT': 1
+
     }
 
     def setUp(self):
@@ -679,7 +679,7 @@ class NoBlueprintTests(SecurityTest):
     }
 
     AUTH_CONFIG = {
-        'USER_COUNT': 1
+
     }
 
     def test_login_endpoint_is_404(self):
