@@ -61,9 +61,14 @@ class UserDatastore(object):
     :param role_model: A role model class definition
     """
 
-    def __init__(self, user_model, role_model):
+    def __init__(self, user_model, role_model, enable_acl=False):
         self.user_model = user_model
         self.role_model = role_model
+        if enable_acl:
+            self.acl_datastore = self._get_acl_datastore()
+
+    def _get_acl_datastore(self):
+        raise NotImplementedError
 
     def _prepare_role_modify_args(self, user, role):
         if isinstance(user, basestring):
@@ -175,9 +180,13 @@ class SQLAlchemyUserDatastore(SQLAlchemyDatastore, UserDatastore):
     """A SQLAlchemy datastore implementation for Flask-Security that assumes the
     use of the Flask-SQLAlchemy extension.
     """
-    def __init__(self, db, user_model, role_model):
+    def __init__(self, db, user_model, role_model, **kwargs):
         SQLAlchemyDatastore.__init__(self, db)
-        UserDatastore.__init__(self, user_model, role_model)
+        UserDatastore.__init__(self, user_model, role_model, **kwargs)
+
+    def _get_acl_datastore(self):
+        from .acl import SQLAlchemyAclDatastore
+        return SQLAlchemyAclDatastore(self.db, self.user_model)
 
     def get_user(self, id_or_email):
         returned = None

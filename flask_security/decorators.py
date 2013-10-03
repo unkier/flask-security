@@ -17,7 +17,7 @@ from flask.ext.login import current_user, login_required
 from flask.ext.principal import RoleNeed, Permission, Identity, identity_changed
 from werkzeug.local import LocalProxy
 
-from . import utils
+from . import acl, utils
 
 
 # Convenient references
@@ -203,4 +203,21 @@ def anonymous_user_required(f):
         if current_user.is_authenticated():
             return redirect(utils.get_url(_security.post_login_view))
         return f(*args, **kwargs)
+    return wrapper
+
+
+def is_granted(model, permissions, view_arg=None):
+    view_arg = view_arg or '%s_id' % model.__name__.lower()
+    pargs = dict(model=model, permissions=permissions, view_arg=view_arg)
+    ObjectPermission = type('%sObjectPermission' % model.__name__, (acl.ObjectPermission,), {})
+    ClassPermission = type('%sClassPermission' % model.__name__, (acl.ClassPermission,), {})
+    perms = [P(**pargs) for P in [ObjectPermission, ClassPermission]]
+
+    def wrapper(fn):
+        @wraps(fn)
+        def decorated_view(*args, **kwargs):
+            if any([p.can() for p in perms]):
+                return fn(*args, **kwargs)
+            return _get_unauthorized_view()
+        return decorated_view
     return wrapper

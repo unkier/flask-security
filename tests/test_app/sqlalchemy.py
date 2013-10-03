@@ -12,14 +12,13 @@ from werkzeug.local import LocalProxy
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.security import Security, UserMixin, RoleMixin, \
      SQLAlchemyUserDatastore
-from flask_security.acl.datastore import AclDatastore
+from flask_security.acl import grant_object_access, grant_class_access
+from flask_security.decorators import is_granted
 
 from tests.test_app import create_app as create_base_app, populate_data, \
      add_context_processors
 
 _security = LocalProxy(lambda: current_app.extensions['security'])
-acl_ds = LocalProxy(lambda: current_app.extensions['security'].acl_datastore)
-
 
 def populate_acl_data(db, User, Post, Comment):
     matt = User.query.filter_by(email='matt@lp.com').first()
@@ -29,8 +28,8 @@ def populate_acl_data(db, User, Post, Comment):
     for m in matts_post, joes_post:
         db.session.add(m)
     db.session.commit()
-    acl_ds.grant_object_access(matt, matts_post, ['view', 'delete', 'edit'])
-    acl_ds.grant_class_access(joe, Post, ['view'])
+    grant_object_access(matt, matts_post, ['view', 'edit', 'delete'])
+    # grant_class_access(joe, Post, ['view'])
 
 
 def create_app(config, **kwargs):
@@ -84,14 +83,16 @@ def create_app(config, **kwargs):
         populate_data(app.config.get('USER_COUNT', None))
         populate_acl_data(db, User, Post, Comment)
 
-    app.security = Security(app, datastore=SQLAlchemyUserDatastore(db, User, Role),
-                            acl_datastore=AclDatastore(db), **kwargs)
+    datastore = SQLAlchemyUserDatastore(db, User, Role, enable_acl=True)
+    app.security = Security(app, datastore=datastore, **kwargs)
 
     add_context_processors(app.security)
 
-    @app.route('/acl')
-    def acl():
-        return 'got here'
+    @app.route('/posts/<post_id>')
+    @is_granted(Post, ['view'])
+    def posts(post_id):
+        post = Post.query.get_or_404(post_id)
+        return post.body
 
     return app
 

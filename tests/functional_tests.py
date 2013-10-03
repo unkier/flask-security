@@ -274,5 +274,14 @@ class MongoEngineDatastoreTests(DefaultDatastoreTests):
 
 
 class DefaultAclTests(SecurityTest):
-    def test_acl(self):
-        print self._get('/acl').data
+
+    def test_is_granted_decorator(self):
+        self.authenticate(email='matt@lp.com')
+        r = self._get('/posts/1')
+        self.assertIn('Matts post content', r.data)
+
+    def test_is_granted_decorator_invalid_permissions(self):
+        self.authenticate(email='joe@lp.com')
+        r = self._get('/posts/1', follow_redirects=True)
+        self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
+

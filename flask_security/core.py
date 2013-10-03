@@ -339,13 +339,12 @@ class Security(object):
     :param app: The application.
     :param datastore: An instance of a user datastore.
     """
-    def __init__(self, app=None, datastore=None, acl_datastore=None, **kwargs):
+    def __init__(self, app=None, datastore=None, **kwargs):
         self.app = app
         self.datastore = datastore
-        self.acl_datastore = acl_datastore
 
         if app is not None and datastore is not None:
-            self._state = self.init_app(app, datastore, acl_datastore, **kwargs)
+            self._state = self.init_app(app, datastore, **kwargs)
 
     def init_app(self, app, datastore=None, acl_datastore=None, register_blueprint=True,
                  login_form=None, confirm_register_form=None,
@@ -360,7 +359,6 @@ class Security(object):
         :param register_blueprint: to register the Security blueprint or not.
         """
         datastore = datastore or self.datastore
-        acl_datastore = acl_datastore or self.acl_datastore
 
         for key, value in _default_config.items():
             app.config.setdefault('SECURITY_' + key, value)

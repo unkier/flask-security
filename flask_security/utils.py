@@ -281,6 +281,10 @@ def get_token_status(token, serializer, max_age=None):
     return expired, invalid, user
 
 
+def get_acl_class_id(clazz):
+    return clazz.__name__
+
+
 @contextmanager
 def capture_passwordless_login_requests():
     login_requests = []
