@@ -271,3 +271,8 @@ class MongoEngineDatastoreTests(DefaultDatastoreTests):
     def _create_app(self, auth_config, **kwargs):
         from tests.test_app.mongoengine import create_app
         return create_app(auth_config, **kwargs)
+
+
+class DefaultAclTests(SecurityTest):
+    def test_acl(self):
+        print self._get('/acl').data

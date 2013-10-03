@@ -212,13 +212,14 @@ def _get_serializer(app, name):
     return URLSafeTimedSerializer(secret_key=secret_key, salt=salt)
 
 
-def _get_state(app, datastore, **kwargs):
+def _get_state(app, datastore, acl_datastore=None, **kwargs):
     for key, value in get_config(app).items():
         kwargs[key.lower()] = value
 
     kwargs.update(dict(
         app=app,
         datastore=datastore,
+        acl_datastore=acl_datastore,
         login_manager=_get_login_manager(app),
         principal=_get_principal(app),
         pwd_context=_get_pwd_context(app),
@@ -338,14 +339,15 @@ class Security(object):
     :param app: The application.
     :param datastore: An instance of a user datastore.
     """
-    def __init__(self, app=None, datastore=None, **kwargs):
+    def __init__(self, app=None, datastore=None, acl_datastore=None, **kwargs):
         self.app = app
         self.datastore = datastore
+        self.acl_datastore = acl_datastore
 
         if app is not None and datastore is not None:
-            self._state = self.init_app(app, datastore, **kwargs)
+            self._state = self.init_app(app, datastore, acl_datastore, **kwargs)
 
-    def init_app(self, app, datastore=None, register_blueprint=True,
+    def init_app(self, app, datastore=None, acl_datastore=None, register_blueprint=True,
                  login_form=None, confirm_register_form=None,
                  register_form=None, forgot_password_form=None,
                  reset_password_form=None, change_password_form=None,
@@ -358,6 +360,7 @@ class Security(object):
         :param register_blueprint: to register the Security blueprint or not.
         """
         datastore = datastore or self.datastore
+        acl_datastore = acl_datastore or self.acl_datastore
 
         for key, value in _default_config.items():
             app.config.setdefault('SECURITY_' + key, value)
@@ -367,7 +370,7 @@ class Security(object):
 
         identity_loaded.connect_via(app)(_on_identity_loaded)
 
-        state = _get_state(app, datastore,
+        state = _get_state(app, datastore, acl_datastore,
                            login_form=login_form,
                            confirm_register_form=confirm_register_form,
                            register_form=register_form,

@@ -6,13 +6,32 @@ import os
 sys.path.pop(0)
 sys.path.insert(0, os.getcwd())
 
+from flask import current_app
+from werkzeug.local import LocalProxy
 
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.security import Security, UserMixin, RoleMixin, \
      SQLAlchemyUserDatastore
+from flask_security.acl.datastore import AclDatastore
 
 from tests.test_app import create_app as create_base_app, populate_data, \
      add_context_processors
+
+_security = LocalProxy(lambda: current_app.extensions['security'])
+acl_ds = LocalProxy(lambda: current_app.extensions['security'].acl_datastore)
+
+
+def populate_acl_data(db, User, Post, Comment):
+    matt = User.query.filter_by(email='matt@lp.com').first()
+    joe = User.query.filter_by(email='joe@lp.com').first()
+    matts_post = Post(body='Matts post content', author=matt, comments=[Comment(body='Joes comment content', author=joe)])
+    joes_post = Post(body='Joes post content', author=joe, comments=[Comment(body='Matts comment content', author=matt)])
+    for m in matts_post, joes_post:
+        db.session.add(m)
+    db.session.commit()
+    oid = acl_ds.create_oid_from_object(matts_post)
+    acl_ds.grant_access(matt, matts_post)
+
 
 def create_app(config, **kwargs):
     app = create_base_app(config)
@@ -43,15 +62,36 @@ def create_app(config, **kwargs):
         roles = db.relationship('Role', secondary=roles_users,
                                 backref=db.backref('users', lazy='dynamic'))
 
+    class Post(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        body = db.Column(db.String(255))
+        author_id = db.Column(db.ForeignKey('user.id'))
+        author = db.relationship('User', backref='posts')
+
+    class Comment(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        body = db.Column(db.String(255))
+        author_id = db.Column(db.ForeignKey('user.id'))
+        author = db.relationship('User', backref='comments')
+        post_id = db.Column(db.ForeignKey('post.id'))
+        post = db.relationship('Post', backref='comments')
+
+
     @app.before_first_request
     def before_first_request():
         db.drop_all()
         db.create_all()
         populate_data(app.config.get('USER_COUNT', None))
+        populate_acl_data(db, User, Post, Comment)
 
-    app.security = Security(app, datastore=SQLAlchemyUserDatastore(db, User, Role), **kwargs)
+    app.security = Security(app, datastore=SQLAlchemyUserDatastore(db, User, Role),
+                            acl_datastore=AclDatastore(db), **kwargs)
 
     add_context_processors(app.security)
+
+    @app.route('/acl')
+    def acl():
+        return 'got here'
 
     return app
 
