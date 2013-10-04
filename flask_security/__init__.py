@@ -20,4 +20,4 @@ from .forms import ForgotPasswordForm, LoginForm, RegisterForm, \
      ResetPasswordForm, PasswordlessLoginForm, ConfirmRegisterForm
 from .signals import confirm_instructions_sent, password_reset, \
      reset_password_instructions_sent, user_confirmed, user_registered
-from .utils import login_user, logout_user, url_for_security
+from .utils import login_user, logout_user, url_for_security, identity_is_granted
