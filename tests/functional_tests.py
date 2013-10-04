@@ -275,20 +275,25 @@ class MongoEngineDatastoreTests(DefaultDatastoreTests):
 
 class DefaultAclTests(SecurityTest):
 
+    def _get_post_id(self):
+        return 1
+
     def test_granted_object_access(self):
         # Test that the owner can edit and delete
         self.authenticate(email='matt@lp.com')
-        r = self._put('/posts/1', data={})
+        e = '/posts/%s' % self._get_post_id()
+        r = self._put(e, data={})
         self.assertIn('Post updated successfully', r.data)
-        r = self._delete('/posts/1')
+        r = self._delete(e)
         self.assertIn('Post deleted successfully', r.data)
 
     def test_not_granted_object_access(self):
         # Test the a non owner can't edit or delete
         self.authenticate(email='dave@lp.com')
-        r = self._put('/posts/1', data={}, follow_redirects=True)
+        e = '/posts/%s' % self._get_post_id()
+        r = self._put(e, data={}, follow_redirects=True)
         self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
-        r = self._delete('/posts/1', follow_redirects=True)
+        r = self._delete(e, follow_redirects=True)
         self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
 
     def test_granted_class_access(self):
@@ -306,3 +311,14 @@ class DefaultAclTests(SecurityTest):
         self.authenticate(email='dave@lp.com')
         r = self._get('/roles', follow_redirects=True)
         self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
+
+
+class MongoEngineAclTests(DefaultAclTests):
+
+    def _create_app(self, auth_config, **kwargs):
+        from tests.test_app.mongoengine import create_app
+        return create_app(auth_config, **kwargs)
+
+    def _get_post_id(self):
+        with self.app.app_context():
+            return str(self.app.Post.objects().first().id)

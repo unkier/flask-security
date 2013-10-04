@@ -1,10 +1,8 @@
 
 from flask import current_app
-from sqlalchemy import and_
-from sqlalchemy.orm import class_mapper
 from werkzeug.local import LocalProxy
 
-from .datastore import SQLAlchemyDatastore
+from .datastore import SQLAlchemyDatastore, MongoEngineDatastore
 from .utils import get_acl_class_id
 
 _security = LocalProxy(lambda: current_app.extensions['security'])
@@ -139,6 +137,8 @@ class SQLAlchemyAclDatastore(SQLAlchemyDatastore, AclDatastore):
         return AclEntry
 
     def find_entry(self, object_id=None, class_id=None, user_id=None):
+        from sqlalchemy import and_
+
         return self._model.query.filter(
             and_(
                 self._model.object_id == object_id,
@@ -148,11 +148,40 @@ class SQLAlchemyAclDatastore(SQLAlchemyDatastore, AclDatastore):
         ).first()
 
     def get_obj_id(self, obj):
+        from sqlalchemy.orm import class_mapper
+
         primary_key_column = class_mapper(obj.__class__).primary_key[0].name
         obj_id = getattr(obj, primary_key_column, None)
         if obj_id is None:
             raise ValueError('Could not determine primary key for %s' % obj)
         return obj_id
+
+
+class MongoEngineAclDatastore(MongoEngineDatastore, AclDatastore):
+
+    def __init__(self, db, user_model):
+        MongoEngineDatastore.__init__(self, db)
+        AclDatastore.__init__(self, user_model)
+
+    def _get_entry_model(self, db, user_model):
+        class AclEntry(db.Document):
+            mask = db.IntField()
+            object_id = db.ObjectIdField()
+            class_id = db.StringField(max_length=200)
+            user_id = db.ObjectIdField()
+        return AclEntry
+
+    def find_entry(self, object_id=None, class_id=None, user_id=None):
+        from mongoengine import Q
+        query = Q(class_id=class_id) & Q(user_id=user_id)
+        if object_id:
+            query = Q(object_id=object_id) & query
+        else:
+            query = Q(object_id__exists=False) & query
+        return self._model.objects(query).first()
+
+    def get_obj_id(self, obj):
+        return obj.id
 
 
 def grant_object_access(*args, **kwargs):

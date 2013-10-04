@@ -12,6 +12,8 @@
 
 __version__ = '1.6.9'
 
+from .acl import grant_object_access, grant_class_access, \
+     revoke_object_access, revoke_class_access
 from .core import Security, RoleMixin, UserMixin, AnonymousUser, current_user
 from .datastore import SQLAlchemyUserDatastore, MongoEngineUserDatastore, PeeweeUserDatastore
 from .decorators import auth_token_required, http_auth_required, \

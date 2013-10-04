@@ -219,9 +219,13 @@ class MongoEngineUserDatastore(MongoEngineDatastore, UserDatastore):
     """A MongoEngine datastore implementation for Flask-Security that assumes
     the use of the Flask-MongoEngine extension.
     """
-    def __init__(self, db, user_model, role_model):
+    def __init__(self, db, user_model, role_model, **kwargs):
         MongoEngineDatastore.__init__(self, db)
-        UserDatastore.__init__(self, user_model, role_model)
+        UserDatastore.__init__(self, user_model, role_model, **kwargs)
+
+    def _get_acl_datastore(self, **kwargs):
+        from .acl import MongoEngineAclDatastore
+        return MongoEngineAclDatastore(self.db, self.user_model, **kwargs)
 
     def get_user(self, id_or_email):
         from mongoengine import ValidationError
