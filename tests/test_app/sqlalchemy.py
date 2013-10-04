@@ -6,12 +6,12 @@ import os
 sys.path.pop(0)
 sys.path.insert(0, os.getcwd())
 
-from flask import current_app
+from flask import current_app, request
 from werkzeug.local import LocalProxy
 
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.security import Security, UserMixin, RoleMixin, \
-     SQLAlchemyUserDatastore, current_user
+     SQLAlchemyUserDatastore, current_user, login_required
 from flask_security.acl import grant_object_access, grant_class_access
 from flask_security.decorators import is_granted
 
@@ -20,23 +20,32 @@ from tests.test_app import create_app as create_base_app, populate_data, \
 
 _security = LocalProxy(lambda: current_app.extensions['security'])
 
-def populate_acl_data(db, User, Post, Comment):
+def populate_acl_data(db, User, Role, Post):
     matt = User.query.filter_by(email='matt@lp.com').first()
     joe = User.query.filter_by(email='joe@lp.com').first()
-    tiya = User.query.filter_by(email='tiya@lp.com').first()
+    dave = User.query.filter_by(email='dave@lp.com').first()
 
-    matts_post = Post(body='matt@lp.com post content', author=matt, comments=[Comment(body='tiya@lp.com comment content', author=tiya)])
-    joes_post = Post(body='joe@lp.com post content', author=joe, comments=[Comment(body='matt@lp.com comment content', author=matt)])
-    tiyas_post = Post(body='tiya@lp.com post content', author=tiya, comments=[Comment(body='joe@lp.com comment content', author=joe)])
+    matts_post = Post(body='matt@lp.com post content', author=matt)
+    joes_post = Post(body='joe@lp.com post content', author=joe)
+    daves_post = Post(body='dave@lp.com post content', author=dave)
 
-    for m in matts_post, joes_post, tiyas_post:
+    for m in matts_post, joes_post, daves_post:
         db.session.add(m)
 
     db.session.commit()
 
     grant_object_access(matt, matts_post, ['owner'])
     grant_object_access(joe, joes_post, ['owner'])
-    grant_object_access(tiya, tiyas_post, ['owner'])
+    grant_object_access(dave, daves_post, ['owner'])
+
+    # Matt can edit any post
+    grant_class_access(matt, Post, ['edit'])
+
+    # Joe can edit and delete any post
+    grant_class_access(joe, Post, ['edit', 'delete'])
+
+    # dave can admin roles
+    grant_class_access(dave, Role, ['admin'])
 
 
 def create_app(config, **kwargs):
@@ -74,43 +83,53 @@ def create_app(config, **kwargs):
         author_id = db.Column(db.ForeignKey('user.id'))
         author = db.relationship('User', backref='posts')
 
-    class Comment(db.Model):
-        id = db.Column(db.Integer, primary_key=True)
-        body = db.Column(db.String(255))
-        author_id = db.Column(db.ForeignKey('user.id'))
-        author = db.relationship('User', backref='comments')
-        post_id = db.Column(db.ForeignKey('post.id'))
-        post = db.relationship('Post', backref='comments')
-
     datastore = SQLAlchemyUserDatastore(db, User, Role, acl_datastore=True)
     app.security = Security(app, datastore=datastore, **kwargs)
     add_context_processors(app.security)
 
-    @app.route('/posts', methods=['POST'])
-    def posts():
-        user = current_user._get_current_object()
-        post = Post(body='%s post content' % user.email, author=user)
-        db.session.add(post)
-        db.session.commit()
-        grant_object_access(user, post, ['owner'])
-        return post.body
+    # Editing and deleting is ACL controlled
+    @app.route('/posts/<post_id>', methods=['PUT'])
+    @login_required
+    @is_granted(Post, 'edit')
+    def edit_post(post_id):
+        return 'Post updated successfully'
 
-    @app.route('/posts/<post_id>')
-    @is_granted(Post, 'admin')
-    def show_post(post_id):
-        return Post.query.get_or_404(post_id).body
+    @app.route('/posts/<post_id>', methods=['DELETE'])
+    @login_required
+    @is_granted(Post, 'delete')
+    def del_post(post_id):
+        return 'Post deleted successfully'
 
-    @app.route('/posts/<post_id>/comments')
-    def post_comments(post_id):
-        post = Post.query.get_or_404(post_id)
-        return '\n'.join(['<div>%s</div>' % c.body for c in post.comments])
+    @app.route('/roles', methods=['POST'])
+    @login_required
+    @is_granted(Role, 'create')
+    def create_role():
+        return 'Role created successfully'
+
+    @app.route('/roles', methods=['PUT'])
+    @login_required
+    @is_granted(Role, 'edit')
+    def edit_role():
+        return 'Role updated successfully'
+
+    @app.route('/roles', methods=['DELETE'])
+    @login_required
+    @is_granted(Role, 'delete')
+    def del_role():
+        return 'Role deleted successfully'
+
+    @app.route('/roles')
+    @login_required
+    @is_granted(Role, 'owner')
+    def get_role():
+        return 'Owner operation success'
 
     @app.before_first_request
     def before_first_request():
         db.drop_all()
         db.create_all()
         populate_data(app.config.get('USER_COUNT', None))
-        populate_acl_data(db, User, Post, Comment)
+        populate_acl_data(db, User, Role, Post)
 
     return app
 

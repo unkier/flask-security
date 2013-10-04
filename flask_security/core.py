@@ -342,7 +342,7 @@ class Security(object):
         self.app = app
         self.datastore = datastore
 
-        if app is not None and datastore is not None:
+        if app is not None:
             self._state = self.init_app(app, datastore, **kwargs)
 
     def init_app(self, app, datastore=None, register_blueprint=True,
@@ -358,6 +358,9 @@ class Security(object):
         :param register_blueprint: to register the Security blueprint or not.
         """
         datastore = datastore or self.datastore
+
+        if datastore is None:
+            raise RuntimeError('A datastore was not specified for Flask-Security')
 
         for key, value in _default_config.items():
             app.config.setdefault('SECURITY_' + key, value)

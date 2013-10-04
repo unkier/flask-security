@@ -275,13 +275,34 @@ class MongoEngineDatastoreTests(DefaultDatastoreTests):
 
 class DefaultAclTests(SecurityTest):
 
-    def test_is_granted_decorator(self):
+    def test_granted_object_access(self):
+        # Test that the owner can edit and delete
         self.authenticate(email='matt@lp.com')
-        r = self._get('/posts/1')
-        self.assertIn('matt@lp.com post content', r.data)
+        r = self._put('/posts/1', data={})
+        self.assertIn('Post updated successfully', r.data)
+        r = self._delete('/posts/1')
+        self.assertIn('Post deleted successfully', r.data)
 
-    def test_is_granted_decorator_invalid_permissions(self):
-        self.authenticate(email='joe@lp.com')
-        r = self._get('/posts/1', follow_redirects=True)
+    def test_not_granted_object_access(self):
+        # Test the a non owner can't edit or delete
+        self.authenticate(email='dave@lp.com')
+        r = self._put('/posts/1', data={}, follow_redirects=True)
+        self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
+        r = self._delete('/posts/1', follow_redirects=True)
         self.assertIn(self.get_message('UNAUTHORIZED'), r.data)
 
+    def test_granted_class_access(self):
+        # Test that a user with class admin access can create, edit and delete any resource
+        self.authenticate(email='dave@lp.com')
+        r = self._post('/roles')
+        self.assertIn('Role created successfully', r.data)
+        r = self._put('/roles')
+        self.assertIn('Role updated successfully', r.data)
+        r = self._delete('/roles')
+        self.assertIn('Role deleted successfully', r.data)
+
+    def test_not_granted_class_access(self):
+        # Test that an admin user can't perform owner operations
+        self.authenticate(email='dave@lp.com')
+        r = self._get('/roles', follow_redirects=True)
+        self.assertIn(self.get_message('UNAUTHORIZED'), r.data)

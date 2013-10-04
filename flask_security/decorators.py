@@ -207,10 +207,11 @@ def anonymous_user_required(f):
 
 
 def is_granted(model, permissions, view_arg=None):
+    view_arg = view_arg or '%s_id' % utils.convert_camel_case(model.__name__)
     def wrapper(fn):
         @wraps(fn)
         def decorated_view(*args, **kwargs):
-            if utils.is_granted(model, permissions, view_arg):
+            if utils.is_granted(model, permissions, request.view_args.get(view_arg)):
                 return fn(*args, **kwargs)
             return _get_unauthorized_view()
         return decorated_view

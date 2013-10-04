@@ -14,6 +14,7 @@ import blinker
 import functools
 import hashlib
 import hmac
+import re
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -285,16 +286,23 @@ def get_acl_class_id(clazz):
     return clazz.__name__
 
 
+def convert_camel_case(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
 class _ObjectPermission(Permission):
-    def __init__(self, permission, model, view_arg, **kwargs):
+    def __init__(self, permission, model, object_id):
         self.permission = permission
         self.model = model
-        self.view_arg = view_arg
+        self.object_id = object_id
 
     def allows(self, identity):
-        object_id = request.view_args.get(self.view_arg)
+        if identity.id is None:
+            return False
+
         class_id = get_acl_class_id(self.model)
-        entry = _datastore.acl_datastore.find_entry(object_id=object_id, class_id=class_id, user_id=identity.id)
+        entry = _datastore.acl_datastore.find_entry(object_id=self.object_id, class_id=class_id, user_id=identity.id)
         valid_masks = _datastore.acl_datastore.get_masks_for_permission(self.permission)
         return entry is not None and entry.mask in valid_masks
 
@@ -305,15 +313,17 @@ class _ClassPermission(Permission):
         self.model = model
 
     def allows(self, identity):
+        if identity.id is None:
+            return False
+
         class_id = get_acl_class_id(self.model)
         entry = _datastore.acl_datastore.find_entry(class_id=class_id, user_id=identity.id)
         valid_masks = _datastore.acl_datastore.get_masks_for_permission(self.permission)
         return entry is not None and entry.mask in valid_masks
 
 
-def is_granted(model, permission, view_arg=None):
-    view_arg = view_arg or '%s_id' % model.__name__.lower()
-    pargs = dict(model=model, permission=permission, view_arg=view_arg)
+def is_granted(model, permission, object_id):
+    pargs = dict(model=model, permission=permission, object_id=object_id)
     ObjectPermission = type('%sObjectPermission' % model.__name__, (_ObjectPermission,), {})
     ClassPermission = type('%sClassPermission' % model.__name__, (_ClassPermission,), {})
     perms = [P(**pargs) for P in [ObjectPermission, ClassPermission]]

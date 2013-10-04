@@ -35,11 +35,22 @@ class SecurityTest(TestCase):
                                content_type=content_type or 'text/html',
                                headers=headers)
 
+    def _delete(self, route, content_type=None, follow_redirects=None, headers=None):
+        return self.client.delete(route, follow_redirects=follow_redirects,
+                                  content_type=content_type or 'text/html',
+                                  headers=headers)
+
     def _post(self, route, data=None, content_type=None, follow_redirects=True, headers=None):
         content_type = content_type or 'application/x-www-form-urlencoded'
         return self.client.post(route, data=data,
                                 follow_redirects=follow_redirects,
                                 content_type=content_type, headers=headers)
+
+    def _put(self, route, data=None, content_type=None, follow_redirects=True, headers=None):
+        content_type = content_type or 'application/x-www-form-urlencoded'
+        return self.client.put(route, data=data,
+                               follow_redirects=follow_redirects,
+                               content_type=content_type, headers=headers)
 
     def register(self, email, password='password'):
         data = dict(email=email, password=password)
