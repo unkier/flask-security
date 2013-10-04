@@ -61,13 +61,17 @@ class UserDatastore(object):
     :param role_model: A role model class definition
     """
 
-    def __init__(self, user_model, role_model, enable_acl=False):
+    def __init__(self, user_model, role_model, acl_datastore=None, **kwargs):
         self.user_model = user_model
         self.role_model = role_model
-        if enable_acl:
-            self.acl_datastore = self._get_acl_datastore()
+        if acl_datastore:
+            if acl_datastore is True:
+                self.acl_datastore = self._get_acl_datastore(**kwargs)
+            else:
+                # Assume its an instance
+                self.acl_datastore = acl_datastore
 
-    def _get_acl_datastore(self):
+    def _get_acl_datastore(self, **kwargs):
         raise NotImplementedError
 
     def _prepare_role_modify_args(self, user, role):
@@ -184,9 +188,9 @@ class SQLAlchemyUserDatastore(SQLAlchemyDatastore, UserDatastore):
         SQLAlchemyDatastore.__init__(self, db)
         UserDatastore.__init__(self, user_model, role_model, **kwargs)
 
-    def _get_acl_datastore(self):
+    def _get_acl_datastore(self, **kwargs):
         from .acl import SQLAlchemyAclDatastore
-        return SQLAlchemyAclDatastore(self.db, self.user_model)
+        return SQLAlchemyAclDatastore(self.db, self.user_model, **kwargs)
 
     def get_user(self, id_or_email):
         returned = None

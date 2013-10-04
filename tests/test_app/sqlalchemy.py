@@ -34,9 +34,9 @@ def populate_acl_data(db, User, Post, Comment):
 
     db.session.commit()
 
-    grant_object_access(matt, matts_post, ['view', 'edit', 'delete'])
-    grant_object_access(joe, joes_post, ['view', 'edit', 'delete'])
-    grant_object_access(tiya, tiyas_post, ['view', 'edit', 'delete'])
+    grant_object_access(matt, matts_post, ['owner'])
+    grant_object_access(joe, joes_post, ['owner'])
+    grant_object_access(tiya, tiyas_post, ['owner'])
 
 
 def create_app(config, **kwargs):
@@ -82,17 +82,8 @@ def create_app(config, **kwargs):
         post_id = db.Column(db.ForeignKey('post.id'))
         post = db.relationship('Post', backref='comments')
 
-
-    @app.before_first_request
-    def before_first_request():
-        db.drop_all()
-        db.create_all()
-        populate_data(app.config.get('USER_COUNT', None))
-        populate_acl_data(db, User, Post, Comment)
-
-    datastore = SQLAlchemyUserDatastore(db, User, Role, enable_acl=True)
+    datastore = SQLAlchemyUserDatastore(db, User, Role, acl_datastore=True)
     app.security = Security(app, datastore=datastore, **kwargs)
-
     add_context_processors(app.security)
 
     @app.route('/posts', methods=['POST'])
@@ -101,11 +92,11 @@ def create_app(config, **kwargs):
         post = Post(body='%s post content' % user.email, author=user)
         db.session.add(post)
         db.session.commit()
-        grant_object_access(user, post, ['view', 'edit', 'delete'])
+        grant_object_access(user, post, ['owner'])
         return post.body
 
     @app.route('/posts/<post_id>')
-    @is_granted(Post, ['view'])
+    @is_granted(Post, 'admin')
     def show_post(post_id):
         return Post.query.get_or_404(post_id).body
 
@@ -113,6 +104,13 @@ def create_app(config, **kwargs):
     def post_comments(post_id):
         post = Post.query.get_or_404(post_id)
         return '\n'.join(['<div>%s</div>' % c.body for c in post.comments])
+
+    @app.before_first_request
+    def before_first_request():
+        db.drop_all()
+        db.create_all()
+        populate_data(app.config.get('USER_COUNT', None))
+        populate_acl_data(db, User, Post, Comment)
 
     return app
 

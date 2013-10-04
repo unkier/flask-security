@@ -212,14 +212,13 @@ def _get_serializer(app, name):
     return URLSafeTimedSerializer(secret_key=secret_key, salt=salt)
 
 
-def _get_state(app, datastore, acl_datastore=None, **kwargs):
+def _get_state(app, datastore, **kwargs):
     for key, value in get_config(app).items():
         kwargs[key.lower()] = value
 
     kwargs.update(dict(
         app=app,
         datastore=datastore,
-        acl_datastore=acl_datastore,
         login_manager=_get_login_manager(app),
         principal=_get_principal(app),
         pwd_context=_get_pwd_context(app),
@@ -346,7 +345,7 @@ class Security(object):
         if app is not None and datastore is not None:
             self._state = self.init_app(app, datastore, **kwargs)
 
-    def init_app(self, app, datastore=None, acl_datastore=None, register_blueprint=True,
+    def init_app(self, app, datastore=None, register_blueprint=True,
                  login_form=None, confirm_register_form=None,
                  register_form=None, forgot_password_form=None,
                  reset_password_form=None, change_password_form=None,
@@ -368,7 +367,7 @@ class Security(object):
 
         identity_loaded.connect_via(app)(_on_identity_loaded)
 
-        state = _get_state(app, datastore, acl_datastore,
+        state = _get_state(app, datastore,
                            login_form=login_form,
                            confirm_register_form=confirm_register_form,
                            register_form=register_form,

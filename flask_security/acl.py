@@ -1,6 +1,5 @@
 
-from flask import current_app, request
-from flask_principal import Permission
+from flask import current_app
 from sqlalchemy import and_
 from sqlalchemy.orm import class_mapper
 from werkzeug.local import LocalProxy
@@ -11,20 +10,33 @@ from .utils import get_acl_class_id
 _security = LocalProxy(lambda: current_app.extensions['security'])
 _datastore = LocalProxy(lambda: _security.datastore.acl_datastore)
 
+DEFAULT_BIT_MASKS = {
+    'view': 1,
+    'edit': 2,
+    'create': 4,
+    'delete': 8,
+    'admin': 16,
+    'owner': 32,
+    'staff': 64
+}
+
+DEFAULT_PERMISSION_MAP = {
+    'view': [DEFAULT_BIT_MASKS[k] for k in ('view', 'edit', 'admin', 'owner', 'staff')],
+    'edit': [DEFAULT_BIT_MASKS[k] for k in ('edit', 'admin', 'owner', 'staff')],
+    'create': [DEFAULT_BIT_MASKS[k] for k in ('create', 'admin', 'owner', 'staff')],
+    'delete': [DEFAULT_BIT_MASKS[k] for k in ('delete', 'admin', 'owner', 'staff')],
+    'admin': [DEFAULT_BIT_MASKS[k] for k in ('admin', 'owner', 'staff')],
+    'owner': [DEFAULT_BIT_MASKS[k] for k in ('owner', 'staff')],
+    'staff': [DEFAULT_BIT_MASKS['staff']],
+}
+
 
 class AclDatastore(object):
 
-    BIT_MASKS = {
-        'view': 1,
-        'edit': 2,
-        'create': 4,
-        'delete': 8,
-        'admin': 16,
-        'owner': 32
-    }
-
-    def __init__(self, user_model):
-        self.AclEntry = self._get_entry_model(self.db, user_model)
+    def __init__(self, user_model, bit_masks=None, permission_map=None):
+        self._model = self._get_entry_model(self.db, user_model)
+        self._bit_masks = bit_masks or DEFAULT_BIT_MASKS
+        self._permission_map = permission_map or DEFAULT_PERMISSION_MAP
 
     def _get_entry_model(self):
         raise NotImplementedError
@@ -47,7 +59,7 @@ class AclDatastore(object):
         return obj.id
 
     def get_bitmasks(self):
-        return self.BIT_MASKS
+        return self._bit_masks
 
     def get_bitmask(self, name):
         bitmasks = self.get_bitmasks()
@@ -57,17 +69,20 @@ class AclDatastore(object):
             perms = ', '.join(bitmasks.keys())
             raise ValueError('%s is an invalid permission. Valid choices are: %s' % (name, perms))
 
-    def get_mask(self, permissions):
+    def get_masks_for_permission(self, permission):
+        return self._permission_map[permission]
+
+    def get_mask(self, *permissions):
         mask = 0
         for p in permissions:
             mask = mask | self.get_bitmask(p)
         return mask
 
     def grant_object_access(self, user, obj, permissions):
-        AclEntry = self.AclEntry
+        AclEntry = self._model
         object_id = self.get_obj_id(obj)
         class_id = get_acl_class_id(obj.__class__)
-        mask = self.get_mask(permissions)
+        mask = self.get_mask(*permissions)
         entry = self.find_entry(object_id=object_id, class_id=class_id, user_id=user.id)
 
         if entry is None:
@@ -78,9 +93,9 @@ class AclDatastore(object):
         return self._save_entry(entry)
 
     def grant_class_access(self, user, clazz, permissions):
-        AclEntry = self.AclEntry
+        AclEntry = self._model
         class_id = get_acl_class_id(clazz)
-        mask = self.get_mask(permissions)
+        mask = self.get_mask(*permissions)
 
         entry = self.find_entry(class_id=class_id, user_id=user.id)
 
@@ -92,14 +107,14 @@ class AclDatastore(object):
         return self._save_entry(entry)
 
     def revoke_object_access(self, user, obj, permissions):
-        mask = self.get_mask(permissions)
+        mask = self.get_mask(*permissions)
         object_id = self.get_obj_id(obj)
         class_id = get_acl_class_id(obj.__class__)
         entry = self.find_entry(object_id=object_id, class_id=class_id, user_id=user.id)
         return self._apply_revoke(entry, mask)
 
     def revoke_class_access(self, user, clazz, permissions):
-        mask = self.get_mask(permissions)
+        mask = self.get_mask(*permissions)
         class_id = get_acl_class_id(clazz)
         entry = self.find_entry(class_id=class_id, user_id=user.id)
         return self._apply_revoke(entry, mask)
@@ -123,15 +138,14 @@ class SQLAlchemyAclDatastore(SQLAlchemyDatastore, AclDatastore):
                                    backref=db.backref('acl_entries', lazy='dynamic'))
         return AclEntry
 
-    def find_entry(self, object_id=None, class_id=None, user_id=None, mask=None):
-        statements = [self.AclEntry.object_id == object_id,
-                      self.AclEntry.class_id == class_id,
-                      self.AclEntry.user_id == user_id]
-
-        if mask:
-            statements.append(self.AclEntry.mask.op('&')(mask) != 0)
-
-        return self.AclEntry.query.filter(and_(*statements)).first()
+    def find_entry(self, object_id=None, class_id=None, user_id=None):
+        return self._model.query.filter(
+            and_(
+                self._model.object_id == object_id,
+                self._model.class_id == class_id,
+                self._model.user_id == user_id
+            )
+        ).first()
 
     def get_obj_id(self, obj):
         primary_key_column = class_mapper(obj.__class__).primary_key[0].name
@@ -139,32 +153,6 @@ class SQLAlchemyAclDatastore(SQLAlchemyDatastore, AclDatastore):
         if obj_id is None:
             raise ValueError('Could not determine primary key for %s' % obj)
         return obj_id
-
-
-class ObjectPermission(Permission):
-    def __init__(self, permissions, model, view_arg, **kwargs):
-        self.permissions = permissions
-        self.model = model
-        self.view_arg = view_arg
-
-    def allows(self, identity):
-        object_id = request.view_args.get(self.view_arg)
-        class_id = get_acl_class_id(self.model)
-        mask = _datastore.get_mask(self.permissions)
-        entry = _datastore.find_entry(object_id=object_id, class_id=class_id, user_id=identity.id, mask=mask)
-        return entry is not None
-
-
-class ClassPermission(Permission):
-    def __init__(self, permissions, model, **kwargs):
-        self.permissions = permissions
-        self.model = model
-
-    def allows(self, identity):
-        class_id = get_acl_class_id(self.model)
-        mask = _datastore.get_mask(self.permissions)
-        entry = _datastore.find_entry(class_id=class_id, user_id=identity.id, mask=mask)
-        return entry is not None
 
 
 def grant_object_access(*args, **kwargs):

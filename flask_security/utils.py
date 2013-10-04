@@ -22,7 +22,7 @@ from flask import url_for, flash, current_app, request, session, render_template
 from flask.ext.login import login_user as _login_user, \
     logout_user as _logout_user
 from flask.ext.mail import Message
-from flask.ext.principal import Identity, AnonymousIdentity, identity_changed
+from flask.ext.principal import Identity, AnonymousIdentity, identity_changed, Permission
 from itsdangerous import BadSignature, SignatureExpired
 from werkzeug.local import LocalProxy
 
@@ -283,6 +283,41 @@ def get_token_status(token, serializer, max_age=None):
 
 def get_acl_class_id(clazz):
     return clazz.__name__
+
+
+class _ObjectPermission(Permission):
+    def __init__(self, permission, model, view_arg, **kwargs):
+        self.permission = permission
+        self.model = model
+        self.view_arg = view_arg
+
+    def allows(self, identity):
+        object_id = request.view_args.get(self.view_arg)
+        class_id = get_acl_class_id(self.model)
+        entry = _datastore.acl_datastore.find_entry(object_id=object_id, class_id=class_id, user_id=identity.id)
+        valid_masks = _datastore.acl_datastore.get_masks_for_permission(self.permission)
+        return entry is not None and entry.mask in valid_masks
+
+
+class _ClassPermission(Permission):
+    def __init__(self, permission, model, **kwargs):
+        self.permission = permission
+        self.model = model
+
+    def allows(self, identity):
+        class_id = get_acl_class_id(self.model)
+        entry = _datastore.acl_datastore.find_entry(class_id=class_id, user_id=identity.id)
+        valid_masks = _datastore.acl_datastore.get_masks_for_permission(self.permission)
+        return entry is not None and entry.mask in valid_masks
+
+
+def is_granted(model, permission, view_arg=None):
+    view_arg = view_arg or '%s_id' % model.__name__.lower()
+    pargs = dict(model=model, permission=permission, view_arg=view_arg)
+    ObjectPermission = type('%sObjectPermission' % model.__name__, (_ObjectPermission,), {})
+    ClassPermission = type('%sClassPermission' % model.__name__, (_ClassPermission,), {})
+    perms = [P(**pargs) for P in [ObjectPermission, ClassPermission]]
+    return any([p.can() for p in perms])
 
 
 @contextmanager
