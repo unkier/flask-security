@@ -322,7 +322,13 @@ class _ClassPermission(Permission):
         return entry is not None and entry.mask in valid_masks
 
 
-def is_granted(model, permission, object_id):
+def identity_is_granted(model, permission, object_id):
+    """Returns `True` if the identity has object or class level access.
+
+    :param model: The model class
+    :param permission: The permission
+    :param object_id: The object id
+    """
     pargs = dict(model=model, permission=permission, object_id=object_id)
     ObjectPermission = type('%sObjectPermission' % model.__name__, (_ObjectPermission,), {})
     ClassPermission = type('%sClassPermission' % model.__name__, (_ClassPermission,), {})

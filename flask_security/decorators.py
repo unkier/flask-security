@@ -206,12 +206,30 @@ def anonymous_user_required(f):
     return wrapper
 
 
-def is_granted(model, permissions, view_arg=None):
+def is_granted(model, permission, view_arg=None):
+    """Decorator which specifies which permission level the current user must be
+    explicitly granted in order to access the decorated endpoint. Example::
+
+        @app.route('/create_post')
+        @is_granted(Post, 'create')
+        def create_post():
+            return 'Post created!'
+
+    A user that has been granted permissions to the object or the class of objects
+    will be able to access the endpoint.
+
+    :param model: The object model class
+    :param permission: The permission the user must be granted
+    :param view_arg: The view argument name that represents the object instance ID.
+                     Defaults to a snake case version of the model name appended
+                     with `_id`.
+    """
     view_arg = view_arg or '%s_id' % utils.convert_camel_case(model.__name__)
+
     def wrapper(fn):
         @wraps(fn)
         def decorated_view(*args, **kwargs):
-            if utils.is_granted(model, permissions, request.view_args.get(view_arg)):
+            if utils.identity_is_granted(model, permission, request.view_args.get(view_arg)):
                 return fn(*args, **kwargs)
             return _get_unauthorized_view()
         return decorated_view
