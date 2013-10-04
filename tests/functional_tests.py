@@ -278,7 +278,7 @@ class DefaultAclTests(SecurityTest):
     def test_is_granted_decorator(self):
         self.authenticate(email='matt@lp.com')
         r = self._get('/posts/1')
-        self.assertIn('Matts post content', r.data)
+        self.assertIn('matt@lp.com post content', r.data)
 
     def test_is_granted_decorator_invalid_permissions(self):
         self.authenticate(email='joe@lp.com')

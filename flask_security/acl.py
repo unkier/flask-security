@@ -3,7 +3,6 @@ from flask import current_app, request
 from flask_principal import Permission
 from sqlalchemy import and_
 from sqlalchemy.orm import class_mapper
-from werkzeug.datastructures import ImmutableDict
 from werkzeug.local import LocalProxy
 
 from .datastore import SQLAlchemyDatastore
@@ -12,30 +11,17 @@ from .utils import get_acl_class_id
 _security = LocalProxy(lambda: current_app.extensions['security'])
 _datastore = LocalProxy(lambda: _security.datastore.acl_datastore)
 
-BIT_MASKS = ImmutableDict({
-    'view': 1,
-    'create': 2,
-    'edit': 4,
-    'delete': 8,
-    'undelete': 16,
-    'operator': 32,
-    'master': 64,
-    'owner': 128
-})
-
-PERMISSION_MAP = ImmutableDict({
-    'view': [BIT_MASKS[k] for k in ('view', 'edit', 'operator', 'master', 'owner')],
-    'create': [BIT_MASKS[k] for k in ('create', 'operator', 'master', 'owner')],
-    'edit': [BIT_MASKS[k] for k in ('edit', 'operator', 'master', 'owner')],
-    'delete': [BIT_MASKS[k] for k in ('delete', 'operator', 'master', 'owner')],
-    'undelete': [BIT_MASKS[k] for k in ('undelete', 'operator', 'master', 'owner')],
-    'operator': [BIT_MASKS[k] for k in ('operator', 'master', 'owner')],
-    'master': [BIT_MASKS[k] for k in ('operator', 'master')],
-    'owner': [BIT_MASKS['owner']],
-})
-
 
 class AclDatastore(object):
+
+    BIT_MASKS = {
+        'view': 1,
+        'edit': 2,
+        'create': 4,
+        'delete': 8,
+        'admin': 16,
+        'owner': 32
+    }
 
     def __init__(self, user_model):
         self.AclEntry = self._get_entry_model(self.db, user_model)
@@ -60,13 +46,21 @@ class AclDatastore(object):
     def get_obj_id(self, obj):
         return obj.id
 
+    def get_bitmasks(self):
+        return self.BIT_MASKS
+
+    def get_bitmask(self, name):
+        bitmasks = self.get_bitmasks()
+        try:
+            return bitmasks[name]
+        except KeyError:
+            perms = ', '.join(bitmasks.keys())
+            raise ValueError('%s is an invalid permission. Valid choices are: %s' % (name, perms))
+
     def get_mask(self, permissions):
         mask = 0
         for p in permissions:
-            if p not in BIT_MASKS:
-                perms = ', '.join(BIT_MASKS.keys())
-                raise ValueError('%s is an invalid permission. Valid choices are: %s' % (p, perms))
-            mask = mask | BIT_MASKS[p]
+            mask = mask | self.get_bitmask(p)
         return mask
 
     def grant_object_access(self, user, obj, permissions):

@@ -11,7 +11,7 @@ from werkzeug.local import LocalProxy
 
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.security import Security, UserMixin, RoleMixin, \
-     SQLAlchemyUserDatastore
+     SQLAlchemyUserDatastore, current_user
 from flask_security.acl import grant_object_access, grant_class_access
 from flask_security.decorators import is_granted
 
@@ -23,13 +23,20 @@ _security = LocalProxy(lambda: current_app.extensions['security'])
 def populate_acl_data(db, User, Post, Comment):
     matt = User.query.filter_by(email='matt@lp.com').first()
     joe = User.query.filter_by(email='joe@lp.com').first()
-    matts_post = Post(body='Matts post content', author=matt, comments=[Comment(body='Joes comment content', author=joe)])
-    joes_post = Post(body='Joes post content', author=joe, comments=[Comment(body='Matts comment content', author=matt)])
-    for m in matts_post, joes_post:
+    tiya = User.query.filter_by(email='tiya@lp.com').first()
+
+    matts_post = Post(body='matt@lp.com post content', author=matt, comments=[Comment(body='tiya@lp.com comment content', author=tiya)])
+    joes_post = Post(body='joe@lp.com post content', author=joe, comments=[Comment(body='matt@lp.com comment content', author=matt)])
+    tiyas_post = Post(body='tiya@lp.com post content', author=tiya, comments=[Comment(body='joe@lp.com comment content', author=joe)])
+
+    for m in matts_post, joes_post, tiyas_post:
         db.session.add(m)
+
     db.session.commit()
+
     grant_object_access(matt, matts_post, ['view', 'edit', 'delete'])
-    # grant_class_access(joe, Post, ['view'])
+    grant_object_access(joe, joes_post, ['view', 'edit', 'delete'])
+    grant_object_access(tiya, tiyas_post, ['view', 'edit', 'delete'])
 
 
 def create_app(config, **kwargs):
@@ -88,11 +95,24 @@ def create_app(config, **kwargs):
 
     add_context_processors(app.security)
 
+    @app.route('/posts', methods=['POST'])
+    def posts():
+        user = current_user._get_current_object()
+        post = Post(body='%s post content' % user.email, author=user)
+        db.session.add(post)
+        db.session.commit()
+        grant_object_access(user, post, ['view', 'edit', 'delete'])
+        return post.body
+
     @app.route('/posts/<post_id>')
     @is_granted(Post, ['view'])
-    def posts(post_id):
+    def show_post(post_id):
+        return Post.query.get_or_404(post_id).body
+
+    @app.route('/posts/<post_id>/comments')
+    def post_comments(post_id):
         post = Post.query.get_or_404(post_id)
-        return post.body
+        return '\n'.join(['<div>%s</div>' % c.body for c in post.comments])
 
     return app
 
